@@ -1,5 +1,5 @@
 ### Usage
 
-Run ` server_test.py `
+Run `python server_test.py `
 
-Run ` client_test.py `
+Run `python client_test.py <img path> <mask img path>`
