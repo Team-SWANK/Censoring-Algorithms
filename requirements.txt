@@ -1,0 +1,6 @@
+# Requirements
+scikit-image
+Flask
+numpy
+matplotlib
+scipy
