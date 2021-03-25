@@ -4,3 +4,5 @@ Flask
 numpy
 matplotlib
 scipy
+fask-restful
+Pillow

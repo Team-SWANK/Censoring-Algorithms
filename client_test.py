@@ -8,7 +8,7 @@ def stringToRGB(base64_string):
     return imread(io.BytesIO(imgdata))
 
 os.environ['NO_PROXY'] = '127.0.0.1'
-url = 'http://127.0.0.1:5000/api/censor?options=[guassian]'
+url = 'http://127.0.0.1:5001/api/censor?options=[pixelization]'
 
 img = open(sys.argv[1], 'rb')
 img_mask = open(sys.argv[2], 'rb')
