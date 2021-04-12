@@ -36,6 +36,25 @@ def pixelization(img, mask_img):
     img = img.astype(np.uint8)
     return np.array(img)
 
+def pixel_sort(img, img_mask):
+    # Stores beginning and end of row
+    selected_row = [-1,-1]
+
+    # Sort pixels horizontally
+    for row in range(len(img_mask)):
+        for col in range(len(img_mask[row])):
+            val = img_mask[row][col][0]
+            if val == 255:
+                if selected_row[0] == -1:
+                    selected_row[0] = col
+            else:
+                if selected_row[0] != -1:
+                    selected_row[1] = col
+                    np.random.shuffle(img[row][selected_row[0]:selected_row[1]])
+                    selected_row = [-1, -1]
+        selected_row = [-1, -1]
+    return img
+
 
 def main():
     print('run')

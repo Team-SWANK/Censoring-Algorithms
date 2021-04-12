@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_restful import Resource, Api
-from algorithms import guassian_blur, pixelization
+from algorithms import guassian_blur, pixelization, pixel_sort
 from skimage.io import imread
 import io
 import numpy as np
@@ -26,7 +26,7 @@ def get_response_image(image_path):
 class Censor(Resource):
 	def get(self):
 		return {'hello': 'world'}
-		
+
 	def post(self):
 		options=request.args.get('options', None)
 		options = options.strip('][').split(', ')
@@ -40,14 +40,15 @@ class Censor(Resource):
 			img = pixelization(img, mask_img)
 		if('gaussian' in options):
 			img = guassian_blur(img, mask_img, 10)
+		if('pixel_sort' in options):
+			img = pixel_sort(img, mask_img)
 		# encodes image in base64 before sending
 		encoded_img = get_response_image(img)
 		my_message = 'here is my message'
 		response =  { 'Status' : 'Success', 'message': my_message , 'ImageBytes': encoded_img}
 		return jsonify(response)
-	
+
 api.add_resource(Censor, '/api/censor')
 
 if __name__ == '__main__':
 	app.run(debug=True,host="0.0.0.0",port=5001)
-
