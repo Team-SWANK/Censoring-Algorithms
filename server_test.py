@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_restful import Resource, Api
-from algorithms import guassian_blur, pixelization, pixel_sort
+from algorithms import guassian_blur, pixelization, pixel_sort, fill_in
 from skimage.io import imread
 import io
 import numpy as np
@@ -42,6 +42,8 @@ class Censor(Resource):
 			img = guassian_blur(img, mask_img, 10)
 		if('pixel_sort' in options):
 			img = pixel_sort(img, mask_img)
+		if('fill_in' in options):
+			img = fill_in(img, mask_img)
 		# encodes image in base64 before sending
 		encoded_img = get_response_image(img)
 		my_message = 'here is my message'
