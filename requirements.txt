@@ -6,3 +6,4 @@ matplotlib
 scipy
 fask-restful
 Pillow
+pixelsort

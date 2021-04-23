@@ -3,6 +3,7 @@ import sys
 
 import scipy.ndimage
 from skimage.io import imread
+from pixelsort import pixelsort
 
 import matplotlib.pyplot as plt
 
@@ -81,7 +82,6 @@ def fill_in(img, img_mask):
 def fill_in_dfs(col, row, pixels, img, img_mask, sumPixels, N):
 
     sumPixels = np.add(sumPixels, img[row][col])
-    print(sumPixels)
     N[0] += 1
     pixels.append((row, col))
     img_mask[row][col][0] = 0
@@ -98,6 +98,11 @@ def fill_in_dfs(col, row, pixels, img, img_mask, sumPixels, N):
     #bottom
     if row > len(img_mask)-1 and img_mask[row+1][col][0] == 255:
         fill_in_dfs(col, row+1, pixels, img, img_mask, sumPixels, N)
+
+
+def pixel_sort2(img, img_mask):
+    a = pixelsort(img, img_mask)
+    return np.asarray(a)[:,:,:3]
 
 def main():
     print('run')
