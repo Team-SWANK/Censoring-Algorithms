@@ -1,9 +1,10 @@
 import os
 import sys
-
+import io
 import scipy.ndimage
 from skimage.io import imread
 from pixelsort import pixelsort
+import piexif
 
 import matplotlib.pyplot as plt
 
@@ -101,7 +102,7 @@ def fill_in_dfs(col, row, pixels, img, img_mask, sumPixels, N):
 
 
 def pixel_sort2(img, img_mask):
-    a = pixelsort(img, img_mask)
+    a = pixelsort(img, interval_image=img_mask, interval_function="file")
     return np.asarray(a)[:,:,:3]
 
 def black_bar(img, img_mask):
@@ -157,6 +158,42 @@ def black_bar_dfs(col, row, img_mask, count):
     if row > len(img_mask)-1 and img_mask[row+1][col][0] == 255:
         black_bar_dfs(col, row+1, img_mask, count)
 
+def adjust_exif2(tags_chosen,exif):
+    new_exif = dict(exif)
+    tag_space_list = ["0th", "Exif", "GPS", "1st"]
+    i =0
+    for index,tag_space in enumerate(tag_space_list):
+        print("Tag Space: ",tag_space)
+        for chosen in tags_chosen:
+            try:
+                if index == 0:
+                    #tag_num = piexif.ImageIFD.__getattribute__(piexif.ImageIFD,chosen)
+                    new_exif[tag_space][piexif.ImageIFD.__getattribute__(piexif.ImageIFD,chosen)] = ""
+                elif index == 1:
+                    #print(type(new_exif[tag_space][piexif.ExifIFD.__getattribute__(piexif.ExifIFD,chosen)]))
+                    new_exif[tag_space][piexif.ExifIFD.__getattribute__(piexif.ExifIFD,chosen)] = b''
+                elif index == 2:
+                    tagType = type(new_exif[tag_space][piexif.GPSIFD.__getattribute__(piexif.GPSIFD,chosen)])
+                    if tagType is bytes:
+                        new_exif[tag_space][piexif.GPSIFD.__getattribute__(piexif.GPSIFD,chosen)] = b''
+                    elif tagType is int:
+                        new_exif[tag_space][piexif.GPSIFD.__getattribute__(piexif.GPSIFD,chosen)] = 0
+                    elif tagType is tuple:
+                        new_exif[tag_space][piexif.GPSIFD.__getattribute__(piexif.GPSIFD,chosen)] = (0,0)
+                else:
+                   new_exif[tag_space][piexif.InteropIFD.__getattribute__(piexif.InteropIFD, chosen)] = ""
+                i+=1
+                print("removed: ",chosen, i,"/",len(tags_chosen))
+            except: continue #this accounts for the fact that each tag doesnt exist in every tag_space
+    return new_exif
+
+def metadata_erase(img, exif, tags):
+    exif = piexif.load(exif)
+    new_exif = adjust_exif2(tags,exif)
+    new_bytes = piexif.dump(new_exif)
+    outputImage = io.BytesIO()
+    piexif.insert(new_bytes, img, outputImage)
+    return outputImage
 
 
 def main():

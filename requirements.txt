@@ -4,6 +4,7 @@ Flask
 numpy
 matplotlib
 scipy
-fask-restful
+flask-restful == 0.3.8
 Pillow
 pixelsort
+piexif

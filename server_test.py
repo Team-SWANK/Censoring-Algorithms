@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_restful import Resource, Api
-from algorithms import guassian_blur, pixelization, pixel_sort, fill_in, pixel_sort2, black_bar
+from algorithms import guassian_blur, pixelization, pixel_sort, fill_in, pixel_sort2, black_bar, metadata_erase
 from skimage.io import imread
 import io
 import numpy as np
@@ -16,10 +16,10 @@ def allowed_file(filename):
 	return '.' in filename and \
 		filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def get_response_image(image_path):
-	pil_img = Image.fromarray(np.uint8(image_path)) # reads the PIL image
-	byte_arr = io.BytesIO()
-	pil_img.save(byte_arr, format='JPEG') # convert the PIL image to byte array
+def get_response_image(byte_arr):
+	# pil_img = Image.fromarray(np.uint8(image_path)) # reads the PIL image
+	# byte_arr = io.BytesIO()
+	# pil_img.save(byte_arr, format='JPEG') # convert the PIL image to byte array
 	encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii') # encode as base64
 	return encoded_img
 
@@ -32,8 +32,12 @@ class Censor(Resource):
 		options = options.strip('][').split(', ')
 		# reads file streams and inputs them in correct array structure
 		files = request.files.to_dict()
-		img = imread(io.BytesIO(files['image'].read()))[:,:,:3]
+		im=io.BytesIO(files['image'].read())
+		img = imread(im)[:,:,:3]
 		mask_img = imread(io.BytesIO(files['mask'].read()))[:,:,:1].astype(np.float)
+		# need Pillow to get exif data from image
+		im=Image.open(im)
+		img_exif=im.info["exif"]
 		# runs guassian blur on image with mask
 		if('pixelization' in options):
 			img = pixelization(img, mask_img)
@@ -47,6 +51,15 @@ class Censor(Resource):
 			img = pixel_sort2(Image.open(files['image']), Image.open(files['mask']))
 		if('black_bar' in options):
 			img = black_bar(Image.open(files['image']), mask_img)
+		# runs through metadata scrubber if there is anything
+		img = Image.fromarray(img)
+		imgByteArr = io.BytesIO()
+		img.save(imgByteArr, format=im.format)
+		imgByteArr = imgByteArr.getvalue()
+		metadata_tags=request.args.get('metadata', None)
+		metadata_tags=metadata_tags.strip('][').split(', ')
+		print(metadata_tags)
+		img = metadata_erase(imgByteArr, img_exif, metadata_tags)
 		# encodes image in base64 before sending
 		encoded_img = get_response_image(img)
 		my_message = 'here is my message'
