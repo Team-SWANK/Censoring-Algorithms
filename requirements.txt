@@ -8,3 +8,4 @@ flask-restful == 0.3.8
 Pillow
 pixelsort
 piexif
+opencv-contrib-python-headless
