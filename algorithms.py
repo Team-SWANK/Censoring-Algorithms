@@ -39,6 +39,7 @@ def pixelization(img, mask_img):
     return np.array(img)
 
 def pixel_sort(img, img_mask):
+    img_mask = np.where(img_mask > 250, 255, 0)
     # Stores beginning and end of row
     selected_row = [-1,-1]
     # Sort pixels horizontally
