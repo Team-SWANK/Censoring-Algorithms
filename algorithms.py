@@ -108,21 +108,22 @@ def pixel_sort2(img, img_mask):
 def black_bar(img, img_mask):
 
     BLACK_COLOR = (0,0,0)
-
+    img_mask = (img_mask[:,:,:1] > 0.9).astype(np.uint8)
     # RUN DFS
-    count = 1
+    count = 2
     for row in range(len(img_mask)):
         for col in range(len(img_mask[row])):
             val = img_mask[row][col][0]
-            if val == 255:
+            if val == 1:
                 black_bar_dfs(col, row, img_mask, count)
                 count += 1
+    print("count", count)
 
-    print("should be 1", img_mask[1980][1520])
-    print("should be 3", img_mask[2040][4030])
+    print("should be 1", img_mask[1980][1520][0])
+    print("should be 3", img_mask[2040][4030][0])
     print(img.size[0], img.size[1])
 
-    count = 1
+    count = 2
     segment = [img.size[0], img.size[1], 0 ,0]
     for row in range(len(img_mask)):
         for col in range(len(img_mask[row])):
@@ -140,22 +141,32 @@ def black_bar(img, img_mask):
                 if row > segment[3]:
                     segment[3] = row
     img.paste( BLACK_COLOR, [segment[0],segment[1],segment[2],segment[3]])
+    img = np.array(img)
+    # colors = [[24, 67, 88], [255, 0, 0], [0, 255, 0], [0, 0, 255]]
+    # for row in range(len(img_mask)):
+    #     for col in range(len(img_mask[row])):
+    #         if img_mask[row][col][0] > 0:
+    #             # print(int(int(img_mask[row][col][0])%4))
+    #             if int(img_mask[row][col][0]) < 4:
+    #                 img[row][col] = colors[int(img_mask[row][col][0])]
+    #             else:
+    #                 img[row][col] = colors[int(int(img_mask[row][col][0])%4)]
 
     return img
 
 def black_bar_dfs(col, row, img_mask, count):
     img_mask[row][col][0] = count
     #left
-    if col > 0 and img_mask[row][col-1][0] == 255:
+    if col > 0 and img_mask[row][col-1][0] == 1:
         black_bar_dfs(col-1, row, img_mask, count)
     #top
-    if row > 0 and img_mask[row-1][col][0] == 255:
+    if row > 0 and img_mask[row-1][col][0] == 1:
         black_bar_dfs(col, row-1, img_mask, count)
     #right
-    if col < len(img_mask[0])-1 and img_mask[row][col+1][0] == 255:
+    if col < len(img_mask[0])-1 and img_mask[row][col+1][0] == 1:
         black_bar_dfs(col+1, row, img_mask, count)
     #bottom
-    if row > len(img_mask)-1 and img_mask[row+1][col][0] == 255:
+    if row > len(img_mask)-1 and img_mask[row+1][col][0] == 1:
         black_bar_dfs(col, row+1, img_mask, count)
 
 def adjust_exif2(tags_chosen,exif):
