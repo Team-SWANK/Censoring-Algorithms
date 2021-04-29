@@ -2,6 +2,7 @@ import os
 import sys
 import io
 import scipy.ndimage
+from skimage import feature
 from skimage.io import imread
 from pixelsort import pixelsort
 import piexif
@@ -107,49 +108,89 @@ def pixel_sort2(img, img_mask):
 
 def black_bar(img, img_mask):
     BLACK_COLOR = (0,0,0)
+    img_mask = img_mask.reshape(img_mask.shape[0], img_mask.shape[1])# flattening mask to 2D array with singletons
+    resized = False# holds whether image was resized or not as those require different implementations
 
-    img_mask = np.where(img_mask > 250, 255, 0)
+    # resizes mask and changes resized boolean to  True
+    if img_mask.shape[0] > 1000 or img_mask.shape[1] > 1000:
+        resize_mask = Image.fromarray(img_mask)
+        scale_ratio = min(1000/img_mask.shape[0], 1000/img_mask.shape[1])
+        resize_mask = resize_mask.resize(tuple([int(x * scale_ratio) for x in resize_mask.size]))
+        img_mask = np.array(resize_mask)
+        resized = True
+
+    # edge detection on image 
+    edges = feature.canny(img_mask)
+    img_mask = np.where(edges == True, 255, 0)
 
     # RUN DFS
     count = 2
     for row in range(len(img_mask)):
         for col in range(len(img_mask[row])):
-            if img_mask[row][col][0] == 255:
+            if img_mask[row][col] == 255:
                 black_bar_dfs(col, row, img_mask, count)
                 count += 1
-    print("count", count)
+                print("count", count)
 
-    # print("should be 1", img_mask[1980][1520][0])
-    # print("should be 3", img_mask[2040][4030][0])
-    print(img.size[0], img.size[1])
-
-    for i in range(1, count):
-        segment = [img.size[0], img.size[1], 0 ,0]
-        for row in range(len(img_mask)):
-            for col in range(len(img_mask[row])):
-                if i == img_mask[row][col][0]:
-                    # left
-                    if col < segment[0]:
-                        segment[0] = col
-                    # top
-                    if row < segment[1]:
-                        segment[1] = row
-                    # right
-                    if col > segment[2]:
-                        segment[2] = col
-                    # bottom
-                    if row > segment[3]:
-                        segment[3] = row
+    # rectangular bounding boxes are found on downscaled mask and then the image with bounding boxes is upscaled 
+    # into a new mask that is just pasted onto the image
+    if(resized):
+        mask = np.full_like(img_mask, 0).astype(np.uint8)
+        for i in range(1, count):
+            segment = [img_mask.shape[0], img_mask.shape[1], 0 ,0]
+            for row in range(len(img_mask)):
+                for col in range(len(img_mask[row])):
+                    if i == img_mask[row][col]:
+                        # left
+                        if col < segment[0]:
+                            segment[0] = int(col)
+                        # top
+                        if row < segment[1]:
+                            segment[1] = int(row)
+                        # right
+                        if col > segment[2]:
+                            segment[2] = int(col)
+                        # bottom
+                        if row > segment[3]:
+                            segment[3] = int(row)
+            print(segment)
+            mask[segment[1]:segment[3], segment[0]:segment[2]] = 255
+        # resize new bounding box mask into original image size
+        mask.reshape(mask.shape[0], mask.shape[1])
+        resize_mask = Image.fromarray(mask)
+        resize_mask = resize_mask.resize(img.size)
+        mask = np.array(resize_mask)
+        mask = Image.fromarray(np.where(mask > 10, 255, 0).astype(np.uint8))
+        img.paste(BLACK_COLOR, mask=mask)
+    # original bounding box for images that weren't resized
+    else:
+        for i in range(1, count):
+            segment = [img.size[0], img.size[1], 0 ,0]
+            for row in range(len(img_mask)):
+                for col in range(len(img_mask[row])):
+                    if i == img_mask[row][col]:
+                        # left
+                        if col < segment[0]:
+                            segment[0] = int(col)
+                        # top
+                        if row < segment[1]:
+                            segment[1] = int(row)
+                        # right
+                        if col > segment[2]:
+                            segment[2] = int(col)
+                        # bottom
+                        if row > segment[3]:
+                            segment[3] = int(row)
             img.paste( BLACK_COLOR, [segment[0],segment[1],segment[2],segment[3]])
-
+    # must return as numpy array for postprocessing
     return np.array(img)
 
 def black_bar_dfs(col, row, img_mask, count):
 
-    if row < 0 or row > len(img_mask)-1 or col < 0 or col > len(img_mask[0])-1 or img_mask[row][col][0] != 255:
+    if row < 0 or row > len(img_mask)-1 or col < 0 or col > len(img_mask[0])-1 or img_mask[row][col] != 255:
         return
 
-    img_mask[row][col][0] = count
+    img_mask[row][col] = count
 
     #left
     black_bar_dfs(col-1, row, img_mask, count)
@@ -159,6 +200,14 @@ def black_bar_dfs(col, row, img_mask, count):
     black_bar_dfs(col+1, row, img_mask, count)
     #bottom
     black_bar_dfs(col, row+1, img_mask, count)
+    #topleft
+    black_bar_dfs(col-1, row-1, img_mask, count)
+    #topright
+    black_bar_dfs(col+1, row-1, img_mask, count)
+    #bottomleft
+    black_bar_dfs(col-1, row+1, img_mask, count)
+    #bottomright
+    black_bar_dfs(col+1, row+1, img_mask, count)
 
 def adjust_exif2(tags_chosen,exif):
     new_exif = dict(exif)

@@ -35,7 +35,7 @@ class Censor(Resource):
 		files = request.files.to_dict()
 		im=io.BytesIO(files['image'].read())
 		img = imread(im)[:,:,:3]
-		mask_img = imread(io.BytesIO(files['mask'].read()))[:,:,:1].astype(np.float)
+		mask_img = imread(io.BytesIO(files['mask'].read()))[:,:,:1]
 		# need Pillow to get exif data from image
 		im=Image.open(im)
 		img_exif= im.info["exif"] if "exif" in im.info else piexif.dump({"0th":{}, "Exif":{}, "GPS":{}, "1st":{}, "thumbnail":None})
