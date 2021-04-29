@@ -6,6 +6,7 @@ import io
 import numpy as np
 from base64 import encodebytes
 from PIL import Image
+import piexif
 
 app = Flask(__name__)
 api = Api(app)
@@ -37,7 +38,7 @@ class Censor(Resource):
 		mask_img = imread(io.BytesIO(files['mask'].read()))[:,:,:1].astype(np.float)
 		# need Pillow to get exif data from image
 		im=Image.open(im)
-		img_exif=im.info["exif"]
+		img_exif= im.info["exif"] if "exif" in im.info else piexif.dump({"0th":{}, "Exif":{}, "GPS":{}, "1st":{}, "thumbnail":None})
 		# runs guassian blur on image with mask
 		if('pixelization' in options):
 			img = pixelization(img, mask_img)
