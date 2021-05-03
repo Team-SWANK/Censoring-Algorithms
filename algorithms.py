@@ -60,6 +60,7 @@ def pixel_sort(img, img_mask):
 
 def fill_in(img, img_mask):
 
+    img_mask = np.where(img_mask > 250, 255, 0)
     sumPixels = np.array([0, 0, 0]) #RGB
     pixels = []
     N = [0] #Number of pixels in group
@@ -69,6 +70,8 @@ def fill_in(img, img_mask):
             val = img_mask[row][col][0]
             if val == 255:
                 fill_in_dfs(col, row, pixels, img, img_mask, sumPixels, N)
+                print("sum pixels", sumPixels)
+                print("num of blobs", N[0])
                 avgPixel = sumPixels / N[0]
                 for i in pixels:
                     img[i[0]][i[1]][0] = avgPixel[0]
@@ -84,7 +87,12 @@ def fill_in(img, img_mask):
 
 def fill_in_dfs(col, row, pixels, img, img_mask, sumPixels, N):
 
-    sumPixels = np.add(sumPixels, img[row][col])
+    #sumPixels = np.add(sumPixels, img[row][col])
+    sumPixels[0] += img[row][col][0]
+    sumPixels[1] += img[row][col][1]
+    sumPixels[2] += img[row][col][2]
+
+
     N[0] += 1
     pixels.append((row, col))
     img_mask[row][col][0] = 0
@@ -99,7 +107,7 @@ def fill_in_dfs(col, row, pixels, img, img_mask, sumPixels, N):
     if col < len(img_mask[0])-1 and img_mask[row][col+1][0] == 255:
         fill_in_dfs(col+1, row, pixels, img, img_mask, sumPixels, N)
     #bottom
-    if row > len(img_mask)-1 and img_mask[row+1][col][0] == 255:
+    if row < len(img_mask)-1 and img_mask[row+1][col][0] == 255:
         fill_in_dfs(col, row+1, pixels, img, img_mask, sumPixels, N)
 
 
@@ -120,7 +128,7 @@ def black_bar(img, img_mask):
         img_mask = np.array(resize_mask)
         resized = True
 
-    # edge detection on image 
+    # edge detection on image
     edges = feature.canny(img_mask)
     img_mask = np.where(edges == True, 255, 0)
 
@@ -131,9 +139,8 @@ def black_bar(img, img_mask):
             if img_mask[row][col] == 255:
                 black_bar_dfs(col, row, img_mask, count)
                 count += 1
-                print("count", count)
 
-    # rectangular bounding boxes are found on downscaled mask and then the image with bounding boxes is upscaled 
+    # rectangular bounding boxes are found on downscaled mask and then the image with bounding boxes is upscaled
     # into a new mask that is just pasted onto the image
     if(resized):
         mask = np.full_like(img_mask, 0).astype(np.uint8)
