@@ -59,56 +59,95 @@ def pixel_sort(img, img_mask):
     return img
 
 def fill_in(img, img_mask):
+    mask_copy = np.where(img_mask[:,:,:1] > 10, 255, 0)
+    img_mask = img_mask.reshape(img_mask.shape[0], img_mask.shape[1])# flattening mask to 2D array with singletons
+    resized = False# holds whether image was resized or not as those require different implementations
 
-    img_mask = np.where(img_mask > 250, 255, 0)
-    sumPixels = np.array([0, 0, 0]) #RGB
-    pixels = []
-    N = [0] #Number of pixels in group
+    # resizes mask and changes resized boolean to  True
+    if img_mask.shape[0] > 500 or img_mask.shape[1] > 500:
+        resize_mask = Image.fromarray(img_mask)
+        scale_ratio = min(500/img_mask.shape[0], 500/img_mask.shape[1])
+        print('scale ratio', scale_ratio)
+        resize_mask = resize_mask.resize(tuple([int(x * scale_ratio) for x in resize_mask.size]))
+        img_mask = np.array(resize_mask)
+        resized = True
 
+    # edge detection on image
+    edges = feature.canny(img_mask, sigma=3)
+    img_mask = np.where(edges == True, 255, 0)
+
+    # RUN DFS
+    count = 2
     for row in range(len(img_mask)):
         for col in range(len(img_mask[row])):
-            val = img_mask[row][col][0]
-            if val == 255:
-                fill_in_dfs(col, row, pixels, img, img_mask, sumPixels, N)
-                print("sum pixels", sumPixels)
-                print("num of blobs", N[0])
-                avgPixel = sumPixels / N[0]
-                for i in pixels:
-                    img[i[0]][i[1]][0] = avgPixel[0]
-                    img[i[0]][i[1]][1] = avgPixel[1]
-                    img[i[0]][i[1]][2] = avgPixel[2]
+            if img_mask[row][col] == 255:
+                black_bar_dfs(col, row, img_mask, count)
+                count += 1
+    print(img.shape)
+    print(img_mask.shape)
+    xRatio = img.shape[0] / img_mask.shape[0]
+    print(xRatio)
+    yRatio = img.shape[1] / img_mask.shape[1]
+    print(yRatio)
+    print(mask_copy.shape)
+    # rectangular bounding boxes are found on downscaled mask and then the mask with bounding boxes is upscaled
+    # into a new mask that is just pasted onto the image
+    if(resized):
+        for i in range(1, count):
+            # mask = np.full_like(img_mask, 0).astype(np.uint8)
+            segment = [img_mask.shape[0], img_mask.shape[1], 0 ,0]
+            for row in range(len(img_mask)):
+                for col in range(len(img_mask[row])):
+                    if i == img_mask[row][col]:
+                        # left
+                        if col < segment[0]:
+                            segment[0] = int(col)
+                        # top
+                        if row < segment[1]:
+                            segment[1] = int(row)
+                        # right
+                        if col > segment[2]:
+                            segment[2] = int(col)
+                        # bottom
+                        if row > segment[3]:
+                            segment[3] = int(row)
 
-                # Reset data structres
-                sumPixels = np.array([0, 0, 0])
-                pixels = []
-                N[0] = 0
-
+            locs = np.where(mask_copy[round(segment[1]*yRatio):round(segment[3]*yRatio), round(segment[0]*xRatio):round(segment[2]*xRatio)] == 255)
+            if len(locs[0]) < 1:
+                continue
+            pixels = img[round(segment[1]*yRatio):round(segment[3]*yRatio), round(segment[0]*xRatio):round(segment[2]*xRatio)]
+            crop = np.where(mask_copy[round(segment[1]*yRatio):round(segment[3]*yRatio), round(segment[0]*xRatio):round(segment[2]*xRatio)] == 255, 
+                np.mean(pixels, axis=(0,1)), 
+                img[round(segment[1]*yRatio):round(segment[3]*yRatio), round(segment[0]*xRatio):round(segment[2]*xRatio)])
+            img[round(segment[1]*yRatio):round(segment[3]*yRatio), round(segment[0]*xRatio):round(segment[2]*xRatio)] = crop
+    # original bounding box for images that weren't resized
+    else:
+        for i in range(1, count):
+            segment = [img.shape[0], img.shape[1], 0 ,0]
+            for row in range(len(img_mask)):
+                for col in range(len(img_mask[row])):
+                    if i == img_mask[row][col]:
+                        # left
+                        if col < segment[0]:
+                            segment[0] = int(col)
+                        # top
+                        if row < segment[1]:
+                            segment[1] = int(row)
+                        # right
+                        if col > segment[2]:
+                            segment[2] = int(col)
+                        # bottom
+                        if row > segment[3]:
+                            segment[3] = int(row)
+            locs = np.where(mask_copy[segment[1]:segment[3], segment[0]:segment[2]] == 255)
+            if len(locs[0]) < 1:
+                continue
+            pixels = img[segment[1]:segment[3], segment[0]:segment[2]]
+            crop = np.where(mask_copy[segment[1]:segment[3], segment[0]:segment[2]] == 255, 
+                np.mean(pixels), 
+                img[segment[1]:segment[3], segment[0]:segment[2]])
+            img[segment[1]:segment[3], segment[0]:segment[2]] = crop
     return img
-
-def fill_in_dfs(col, row, pixels, img, img_mask, sumPixels, N):
-
-    #sumPixels = np.add(sumPixels, img[row][col])
-    sumPixels[0] += img[row][col][0]
-    sumPixels[1] += img[row][col][1]
-    sumPixels[2] += img[row][col][2]
-
-
-    N[0] += 1
-    pixels.append((row, col))
-    img_mask[row][col][0] = 0
-
-    #left
-    if col > 0 and img_mask[row][col-1][0] == 255:
-        fill_in_dfs(col-1, row, pixels, img, img_mask, sumPixels, N)
-    #top
-    if row > 0 and img_mask[row-1][col][0] == 255:
-        fill_in_dfs(col, row-1, pixels, img, img_mask, sumPixels, N)
-    #right
-    if col < len(img_mask[0])-1 and img_mask[row][col+1][0] == 255:
-        fill_in_dfs(col+1, row, pixels, img, img_mask, sumPixels, N)
-    #bottom
-    if row < len(img_mask)-1 and img_mask[row+1][col][0] == 255:
-        fill_in_dfs(col, row+1, pixels, img, img_mask, sumPixels, N)
 
 
 def pixel_sort2(img, img_mask):
@@ -121,9 +160,9 @@ def black_bar(img, img_mask):
     resized = False# holds whether image was resized or not as those require different implementations
 
     # resizes mask and changes resized boolean to  True
-    if img_mask.shape[0] > 1000 or img_mask.shape[1] > 1000:
+    if img_mask.shape[0] > 500 or img_mask.shape[1] > 500:
         resize_mask = Image.fromarray(img_mask)
-        scale_ratio = min(1000/img_mask.shape[0], 1000/img_mask.shape[1])
+        scale_ratio = min(500/img_mask.shape[0], 500/img_mask.shape[1])
         resize_mask = resize_mask.resize(tuple([int(x * scale_ratio) for x in resize_mask.size]))
         img_mask = np.array(resize_mask)
         resized = True
@@ -140,7 +179,7 @@ def black_bar(img, img_mask):
                 black_bar_dfs(col, row, img_mask, count)
                 count += 1
 
-    # rectangular bounding boxes are found on downscaled mask and then the image with bounding boxes is upscaled
+    # rectangular bounding boxes are found on downscaled mask and then the mask with bounding boxes is upscaled
     # into a new mask that is just pasted onto the image
     if(resized):
         mask = np.full_like(img_mask, 0).astype(np.uint8)
